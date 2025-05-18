@@ -6,9 +6,9 @@ export default function HomePage() {
       {/* Background Image */}
       <div className="fixed inset-0 -z-10">
         <img 
-          src="https://images.unsplash.com/photo-1506782081254-09bcfd996fd6?q=80&w=2487&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+          src="https://images.unsplash.com/photo-1596998628927-4a8199d0d11b?q=80&w=2487&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
           alt="Background"
-          className="w-full h-full object-cover opacity-70"
+          className="w-full object-cover opacity-70"
         />
       </div>
 

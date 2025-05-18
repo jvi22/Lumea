@@ -2,7 +2,7 @@ const socketIo = require('socket.io');
 const userModel = require('./models/user.model');
 
 let io;
-const chatRooms = {}; // Stores active chat rooms
+const onlineUsers = {}; // Stores online users: { socketId: userId }
 
 function initializeSocket(server) {
     io = socketIo(server, {
@@ -15,121 +15,141 @@ function initializeSocket(server) {
     io.on('connection', (socket) => {
         console.log(`Client connected: ${socket.id}`);
 
-        // Join a chat room
-        socket.on('join-chat', async (data) => {
-            const { userId, chatRoomId } = data;
-
-            // Validate chat room ID (1-99)
-            if (chatRoomId < 1 || chatRoomId > 99) {
-                return socket.emit('error', { message: 'Invalid chat room ID. Must be between 1-99' });
-            }
-
+        // User authentication and online status
+        socket.on('authenticate', async (userId) => {
             try {
-                // Update user's socket ID
-                await userModel.findByIdAndUpdate(userId, { socketId: socket.id });
+                const user = await userModel.findByIdAndUpdate(
+                    userId,
+                    { socketId: socket.id, status: 'online' },
+                    { new: true }
+                ).select('-password');
 
-                // Join the room
-                socket.join(`room-${chatRoomId}`);
-
-                // Initialize room if it doesn't exist
-                if (!chatRooms[chatRoomId]) {
-                    chatRooms[chatRoomId] = {
-                        users: [],
-                        messages: []
-                    };
-                }
-
-                // Add user to room
-                const user = await userModel.findById(userId).select('-password');
-                if (!chatRooms[chatRoomId].users.some(u => u._id.equals(user._id))) {
-                    chatRooms[chatRoomId].users.push(user);
-                }
-
-                // Notify room about new user
-                io.to(`room-${chatRoomId}`).emit('user-joined', {
-                    user,
-                    room: chatRooms[chatRoomId]
-                });
-
-                // Send room info to the joining user
-                socket.emit('room-info', chatRooms[chatRoomId]);
-
-                console.log(`User ${userId} joined chat room ${chatRoomId}`);
-            } catch (err) {
-                console.error('Error joining chat:', err);
-                socket.emit('error', { message: 'Error joining chat room' });
-            }
-        });
-
-        // Handle new messages
-        socket.on('send-message', async (data) => {
-            const { userId, chatRoomId, message } = data;
-
-            try {
-                const user = await userModel.findById(userId).select('-password');
                 if (!user) {
                     return socket.emit('error', { message: 'User not found' });
                 }
 
-                if (!chatRooms[chatRoomId]) {
-                    return socket.emit('error', { message: 'Chat room not found' });
+                onlineUsers[socket.id] = userId;
+
+                socket.emit('authenticated', user);
+                console.log(`User authenticated: ${user.username}`);
+            } catch (err) {
+                console.error('Authentication error:', err);
+                socket.emit('error', { message: 'Authentication failed' });
+            }
+        });
+
+        // Search user by username
+        socket.on('search-user', async (username) => {
+            try {
+                const user = await userModel.findOne({ username })
+                    .select('-password -socketId');
+
+                if (!user) {
+                    return socket.emit('user-not-found', { username });
                 }
 
-                // Create message object
+                socket.emit('user-found', user);
+            } catch (err) {
+                console.error('Search error:', err);
+                socket.emit('error', { message: 'Search failed' });
+            }
+        });
+
+        // Start private chat
+        socket.on('start-chat', async ({ senderId, receiverUsername }) => {
+            try {
+                const [sender, receiver] = await Promise.all([
+                    userModel.findById(senderId).select('-password'),
+                    userModel.findOne({ username: receiverUsername }).select('-password')
+                ]);
+
+                if (!receiver) {
+                    return socket.emit('error', { message: 'User not found' });
+                }
+
+                const roomId = [sender._id, receiver._id].sort().join('_');
+                
+                // Join both users to the same room
+                socket.join(roomId);
+                
+                // If receiver is online, notify them
+                const receiverSocketId = Object.keys(onlineUsers).find(
+                    key => onlineUsers[key] === receiver._id.toString()
+                );
+                
+                if (receiverSocketId) {
+                    io.to(receiverSocketId).join(roomId);
+                    io.to(receiverSocketId).emit('chat-request', {
+                        from: sender,
+                        roomId
+                    });
+                }
+
+                socket.emit('chat-started', {
+                    roomId,
+                    receiver,
+                    isOnline: !!receiverSocketId
+                });
+            } catch (err) {
+                console.error('Chat start error:', err);
+                socket.emit('error', { message: 'Failed to start chat' });
+            }
+        });
+
+        // Send private message
+        socket.on('private-message', async ({ roomId, senderId, message }) => {
+            try {
+                const sender = await userModel.findById(senderId).select('-password');
+                if (!sender) {
+                    return socket.emit('error', { message: 'Sender not found' });
+                }
+
                 const messageObj = {
-                    user,
-                    text: message,
+                    sender,
+                    message,
                     timestamp: new Date()
                 };
 
-                // Add message to room history
-                chatRooms[chatRoomId].messages.push(messageObj);
+                // Save message to database here if needed
+                // await saveMessageToDatabase(roomId, senderId, message);
 
-                // Broadcast message to room
-                io.to(`room-${chatRoomId}`).emit('new-message', messageObj);
+                io.to(roomId).emit('new-private-message', messageObj);
             } catch (err) {
-                console.error('Error sending message:', err);
-                socket.emit('error', { message: 'Error sending message' });
+                console.error('Message send error:', err);
+                socket.emit('error', { message: 'Failed to send message' });
             }
         });
 
         // Handle disconnection
         socket.on('disconnect', async () => {
             console.log(`Client disconnected: ${socket.id}`);
-
-            // Find and remove user from all rooms
-            for (const roomId in chatRooms) {
-                const room = chatRooms[roomId];
-                const userIndex = room.users.findIndex(u => u.socketId === socket.id);
-
-                if (userIndex !== -1) {
-                    const userLeft = room.users[userIndex];
-                    room.users.splice(userIndex, 1);
-                    
-                    // Notify room about user leaving
-                    io.to(`room-${roomId}`).emit('user-left', {
-                        user: userLeft,
-                        room: chatRooms[roomId]
-                    });
-                }
+            
+            const userId = onlineUsers[socket.id];
+            if (userId) {
+                await userModel.findByIdAndUpdate(userId, {
+                    status: 'offline',
+                    lastSeen: new Date()
+                });
+                delete onlineUsers[socket.id];
             }
-
-            // Update user's socket ID in DB
-            await userModel.findOneAndUpdate(
-                { socketId: socket.id },
-                { $set: { socketId: null } }
-            );
         });
     });
 }
 
-// Helper function to send messages to specific socket
-const sendMessageToSocketId = (socketId, messageObject) => {
-    if (io) {
-        io.to(socketId).emit(messageObject.event, messageObject.data);
-    } else {
-        console.log('Socket.io not initialized.');
+// Helper function to send notification to user
+const sendNotificationToUser = async (userId, notification) => {
+    if (!io) return false;
+
+    try {
+        const user = await userModel.findById(userId);
+        if (!user || !user.socketId) return false;
+
+        io.to(user.socketId).emit('notification', notification);
+        return true;
+    } catch (err) {
+        console.error('Notification error:', err);
+        return false;
     }
 }
 
-module.exports = { initializeSocket, sendMessageToSocketId };
+module.exports = { initializeSocket, sendNotificationToUser };
