@@ -1,22 +1,18 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { UserDataContext } from '../context/UserContext'
+import { UserDataContext } from '../context/UserContext';
 
 const UserSignUp = () => {
-
-  const [username, setUsername] = useState('');  
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [currentStep, setCurrentStep] = useState(0);
   const [fade, setFade] = useState(true);
-  const [ userData, setUserData ] = useState({})
-  
 
   const navigate = useNavigate();
-
-  const { user, setUser } = useContext(UserDataContext);
+  const { setUser } = useContext(UserDataContext);
 
   const steps = [
     "Your name is ____________",
@@ -40,7 +36,7 @@ const UserSignUp = () => {
   const submitHandler = async (e) => {
     e.preventDefault();
     const newUser = {
-      username: username, 
+      username: username,
       fullname: fullName,
       email: email,
       password: password
@@ -95,23 +91,17 @@ const UserSignUp = () => {
               </p>
             </div>
 
-            <form onSubmit={(e) => {
-              submitHandler(e);
-            }} className="space-y-5">
-            
-            <div>
-            <input
-             type="text"
-             placeholder="Username"
-             className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-300 focus:border-indigo-300 transition-all"
-             required
-             value={username}
-             onChange={(e) => {
-               setUsername(e.target.value);
-            }}
-            />
-            </div>
-
+            <form onSubmit={submitHandler} className="space-y-5">
+              <div>
+                <input
+                  type="text"
+                  placeholder="Username"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-300 focus:border-indigo-300 transition-all"
+                  required
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                />
+              </div>
               <div>
                 <input
                   type="text"
@@ -119,12 +109,9 @@ const UserSignUp = () => {
                   className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-300 focus:border-indigo-300 transition-all"
                   required
                   value={fullName}
-                  onChange={(e) => {
-                    setFullName(e.target.value);
-                  }}
+                  onChange={(e) => setFullName(e.target.value)}
                 />
               </div>
-              
               <div>
                 <input
                   type="email"
@@ -132,12 +119,9 @@ const UserSignUp = () => {
                   className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-300 transition-all"
                   required
                   value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                  }}
+                  onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
-              
               <div>
                 <input
                   type="password"
@@ -146,12 +130,9 @@ const UserSignUp = () => {
                   minLength={6}
                   required
                   value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                  }}
+                  onChange={(e) => setPassword(e.target.value)}
                 />
               </div>
-              
               <button
                 type="submit"
                 className="w-full bg-indigo-400 text-white py-3 px-4 rounded-lg font-medium hover:bg-indigo-500 transition-colors flex items-center justify-center"

@@ -21,8 +21,9 @@ router.post("/login", [
 // Get user profile (no body validation needed for GET)
 router.get("/profile/:username", userController.getUserProfile);
 
+router.get('/profile', authMiddleware.authUser, userController.getUserProfile)
 
-// Logout
+
 router.get("/logout", authMiddleware.authUser, userController.logoutUser);
 
 module.exports = router;

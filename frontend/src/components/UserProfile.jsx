@@ -9,14 +9,13 @@ const UserProfile = () => {
 
   useEffect(() => {
     const fetchUser = async () => {
-      try {
-        const response = await axios.get(`${import.meta.env.VITE_BASE_URL}/users/${username}`);
+      const response = await axios.get(`${import.meta.env.VITE_BASE_URL}/users/${username}`);
+      if (response.status === 200) {
         setUser(response.data);
-      } catch (error) {
-        console.error('Error fetching user:', error);
-      } finally {
-        setLoading(false);
+      } else {
+        console.error('Error fetching user:', response.statusText);
       }
+      setLoading(false);
     };
     
     fetchUser();

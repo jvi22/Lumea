@@ -1,36 +1,39 @@
 import React from 'react';
-import UserProtectWrapper from './pages/UserProtectWrapper';
 import { Routes, Route } from 'react-router-dom';
+import UserProtectWrapper from './pages/UserProtectWrapper';
 import StartPage from './pages/StartPage';
 import UserLogin from './pages/UserLogin';
-import UserSignup from './pages/UserSignUp';
+import UserSignUp from './pages/UserSignUp';
 import UserLogout from './pages/UserLogout';
 import HomePage from './pages/HomePage';
+import UserProfile from './components/UserProfile';
+import './App.css';
 
 const App = () => {
-
   return (
-    <div>
-
+    <div className="app-container">
       <Routes>
+        {/* Public routes */}
         <Route path="/" element={<StartPage />} />
         <Route path="/login" element={<UserLogin />} />
-        <Route path="/signup" element={<UserSignup />} />
+        <Route path="/signup" element={<UserSignUp />} />
 
-        <Route path="/home"
-         element={
-          <UserProtectWrapper>
-            <HomePage />
-          </UserProtectWrapper>
-        } />
-        <Route path="/user/logout" element={<UserProtectWrapper>
-          <UserLogout />
-        </UserProtectWrapper>
-        } />
+        {/* Protected routes */}
+        <Route element={<UserProtectWrapper />}>
+          <Route path="/home" element={<HomePage />} />
+          <Route path="/profile/:username" element={<UserProfile />} />
+          <Route path="/logout" element={<UserLogout />} />
+        </Route>
 
-         </Routes>
+        {/* 404 fallback */}
+        <Route path="*" element={
+          <div className="flex items-center justify-center h-screen">
+            <h1 className="text-2xl font-bold">404 - Page Not Found</h1>
+          </div>
+        } />
+      </Routes>
     </div>
-  )
-}
+  );
+};
 
 export default App;

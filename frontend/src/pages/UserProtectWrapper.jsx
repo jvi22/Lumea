@@ -31,7 +31,7 @@ const UserProtectWrapper = ({
                 localStorage.removeItem('token')
                 navigate('/login')
             })
-    }, [ token ])
+    }, [token, navigate, setUser])
 
     if (isLoading) {
         return (
